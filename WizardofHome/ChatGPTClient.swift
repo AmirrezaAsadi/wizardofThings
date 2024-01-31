@@ -10,7 +10,7 @@ import Foundation
 class ChatGPTClient {
     let networkManager = NetworkManager() // Assuming this is a custom class for handling network requests
     let apiURL = URL(string: "https://api.openai.com/v1/chat/completions")! // Ensure this is the correct URL for the Chat API
-    let apiKey = "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" // Replace with your actual API key
+    let apiKey = "test" // Replace with your actual API key
 
     func sendMessage(_ message: String, completion: @escaping (String) -> Void) {
         let requestBody: [String: Any] = [
