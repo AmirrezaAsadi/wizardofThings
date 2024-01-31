@@ -14,6 +14,8 @@
 		29596D142B69E968007E33BC /* WizardofHomeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29596D132B69E968007E33BC /* WizardofHomeTests.swift */; };
 		29596D1E2B69E968007E33BC /* WizardofHomeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29596D1D2B69E968007E33BC /* WizardofHomeUITests.swift */; };
 		29596D202B69E968007E33BC /* WizardofHomeUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29596D1F2B69E968007E33BC /* WizardofHomeUITestsLaunchTests.swift */; };
+		29596D2D2B69F5E7007E33BC /* ChatGPTClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29596D2C2B69F5E7007E33BC /* ChatGPTClient.swift */; };
+		29596D2F2B69F601007E33BC /* NetworkManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29596D2E2B69F601007E33BC /* NetworkManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -44,6 +46,8 @@
 		29596D192B69E968007E33BC /* WizardofHomeUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WizardofHomeUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		29596D1D2B69E968007E33BC /* WizardofHomeUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WizardofHomeUITests.swift; sourceTree = "<group>"; };
 		29596D1F2B69E968007E33BC /* WizardofHomeUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WizardofHomeUITestsLaunchTests.swift; sourceTree = "<group>"; };
+		29596D2C2B69F5E7007E33BC /* ChatGPTClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatGPTClient.swift; sourceTree = "<group>"; };
+		29596D2E2B69F601007E33BC /* NetworkManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -96,6 +100,8 @@
 			children = (
 				29596D022B69E967007E33BC /* WizardofHomeApp.swift */,
 				29596D042B69E967007E33BC /* ContentView.swift */,
+				29596D2C2B69F5E7007E33BC /* ChatGPTClient.swift */,
+				29596D2E2B69F601007E33BC /* NetworkManager.swift */,
 				29596D062B69E968007E33BC /* Assets.xcassets */,
 				29596D082B69E968007E33BC /* Preview Content */,
 			);
@@ -257,7 +263,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				29596D2F2B69F601007E33BC /* NetworkManager.swift in Sources */,
 				29596D052B69E967007E33BC /* ContentView.swift in Sources */,
+				29596D2D2B69F5E7007E33BC /* ChatGPTClient.swift in Sources */,
 				29596D032B69E967007E33BC /* WizardofHomeApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -425,6 +433,7 @@
 				DEVELOPMENT_TEAM = 9S8T32LZD6;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = WizardofThings;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -454,6 +463,7 @@
 				DEVELOPMENT_TEAM = 9S8T32LZD6;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = WizardofThings;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
