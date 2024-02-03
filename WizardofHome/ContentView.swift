@@ -51,17 +51,17 @@ struct ContentView: View {
         TabView {
             DevicesView(homeData: homeData)
                 .tabItem {
-                    Label("Devices", systemImage: "1.square.fill")
+                    Label("Devices", systemImage: "thermometer.transmission")
                 }
 
             PeopleView(homeData: homeData)
                 .tabItem {
-                    Label("People", systemImage: "2.square.fill")
+                    Label("Enviornment", systemImage: "square.split.bottomrightquarter")
                 }
 
             EventsView(homeData: homeData)
                 .tabItem {
-                    Label("Events", systemImage: "calendar")
+                    Label("Events", systemImage: "list.bullet.rectangle.portrait")
                 }
 
             RulesView(homeData: homeData)
