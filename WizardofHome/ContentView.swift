@@ -1,27 +1,28 @@
-//
-//  ContentView.swift
-//  WizardofHome
-//
-//  Created by Amir on 1/30/24.
-//
 import SwiftUI
 
 // MARK: - Models
 enum DeviceType {
-    case statusProvider, onOff
+    case sensor, onOff
 }
 
 struct Device: Identifiable {
     var id = UUID()
     var name: String
     var type: DeviceType
-    var isOn: Bool
+    var isOn: Bool?  // Only for onOff devices
+    var value: String?  // Only for sensor devices
+    var interface: String // New property for device interface
+    var assignedPerson: Person? // New property for assigned person
 }
 
-struct Person: Identifiable {
+struct Person: Identifiable, Hashable {
     var id = UUID()
     var name: String
     var bio: String
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
 }
 
 struct Event: Identifiable {
@@ -30,10 +31,16 @@ struct Event: Identifiable {
     var timestamp: Date
 }
 
+struct Rule: Identifiable {
+    var id = UUID()
+    var description: String
+}
+
 class HomeData: ObservableObject {
     @Published var devices: [Device] = []
     @Published var people: [Person] = []
     @Published var address: String = ""
+    @Published var rules: [Rule] = []
 }
 
 // MARK: - ContentView
@@ -44,17 +51,22 @@ struct ContentView: View {
         TabView {
             DevicesView(homeData: homeData)
                 .tabItem {
-                    Label("Devices", systemImage: "1.square.fill")
+                    Label("Devices", systemImage: "thermometer.transmission")
                 }
 
             PeopleView(homeData: homeData)
                 .tabItem {
-                    Label("People", systemImage: "2.square.fill")
+                    Label("People", systemImage: "person.2")
                 }
 
             EventsView(homeData: homeData)
                 .tabItem {
-                    Label("Events", systemImage: "calendar")
+                    Label("Events", systemImage: "list.bullet.rectangle.portrait")
+                }
+
+            RulesView(homeData: homeData)
+                .tabItem {
+                    Label("Rules", systemImage: "list.bullet.rectangle")
                 }
         }
     }
@@ -69,10 +81,8 @@ struct DevicesView: View {
         NavigationView {
             List {
                 ForEach(homeData.devices) { device in
-                    DeviceRow(device: device) { isOn in
-                        if let index = homeData.devices.firstIndex(where: { $0.id == device.id }) {
-                            homeData.devices[index].isOn = isOn
-                        }
+                    NavigationLink(destination: DeviceDetailView(device: device, homeData: homeData)) {
+                        DeviceRow(device: device)
                     }
                 }
                 .onDelete(perform: deleteDevice)
@@ -98,23 +108,18 @@ struct DevicesView: View {
 
 struct DeviceRow: View {
     var device: Device
-    var onToggle: (Bool) -> Void
 
     var body: some View {
         HStack {
             Text(device.name)
             Spacer()
-            if device.type == .onOff {
-                Toggle(isOn: Binding(get: {
-                    device.isOn
-                }, set: { newValue in
-                    onToggle(newValue)
-                })) {
-                    Text("State")
-                }
-                .labelsHidden()
-            } else {
-                Text("Status Provider")
+            if device.type == .onOff, let isOn = device.isOn {
+                Text(isOn ? "On" : "Off")
+            } else if device.type == .sensor, let value = device.value {
+                Text("Value: \(value)")
+            }
+            if let assignedPerson = device.assignedPerson {
+                Text("Assigned to: \(assignedPerson.name)")
             }
         }
     }
@@ -126,6 +131,8 @@ struct AddDeviceView: View {
     @State private var deviceName = ""
     @State private var deviceType = DeviceType.onOff
     @State private var isOn = false
+    @State private var deviceInterface = "" // New property for device interface
+    @State private var selectedPerson: Person? // New property for selected person
 
     var body: some View {
         NavigationView {
@@ -133,7 +140,7 @@ struct AddDeviceView: View {
                 TextField("Device Name", text: $deviceName)
                 Picker("Type", selection: $deviceType) {
                     Text("On/Off").tag(DeviceType.onOff)
-                    Text("Status Provider").tag(DeviceType.statusProvider)
+                    Text("Sensor").tag(DeviceType.sensor)
                 }
                 .pickerStyle(SegmentedPickerStyle())
 
@@ -143,8 +150,21 @@ struct AddDeviceView: View {
                     }
                 }
 
+                Section(header: Text("Device Interface")) {
+                    TextEditor(text: $deviceInterface)
+                }
+
+                Section(header: Text("Assign to Person")) {
+                    Picker("Person", selection: $selectedPerson) {
+                        Text("None").tag(nil as Person?)
+                        ForEach(homeData.people) { person in
+                            Text(person.name).tag(person as Person?)
+                        }
+                    }
+                }
+
                 Button("Add Device") {
-                    let newDevice = Device(name: deviceName, type: deviceType, isOn: isOn)
+                    let newDevice = Device(name: deviceName, type: deviceType, isOn: deviceType == .onOff ? isOn : nil, interface: deviceInterface, assignedPerson: selectedPerson)
                     homeData.devices.append(newDevice)
                     presentationMode.wrappedValue.dismiss()
                 }
@@ -156,6 +176,34 @@ struct AddDeviceView: View {
                 }
             }
         }
+    }
+}
+
+// New view for device details
+struct DeviceDetailView: View {
+    var device: Device
+    @ObservedObject var homeData: HomeData
+
+    var body: some View {
+        Form {
+            Section(header: Text("Device Information")) {
+                Text("Name: \(device.name)")
+                Text("Type: \(device.type == .onOff ? "On/Off" : "Sensor")")
+                if device.type == .onOff, let isOn = device.isOn {
+                    Text("State: \(isOn ? "On" : "Off")")
+                } else if device.type == .sensor, let value = device.value {
+                    Text("Value: \(value)")
+                }
+                if let assignedPerson = device.assignedPerson {
+                    Text("Assigned to: \(assignedPerson.name)")
+                }
+            }
+
+            Section(header: Text("Device Interface")) {
+                Text(device.interface)
+            }
+        }
+        .navigationTitle(device.name)
     }
 }
 
@@ -227,6 +275,7 @@ struct AddPersonView: View {
     }
 }
 
+// MARK: - EventsView
 struct EventsView: View {
     @State private var events = [Event(description: "Initial Event", timestamp: Date())]
     @ObservedObject var homeData: HomeData
@@ -266,15 +315,20 @@ struct EventsView: View {
     }
 
     private func generatePrompt(homeData: HomeData) -> String {
-        var prompt = "Given the following devices and people in a smart home, with the current time of day and location, provide updates on device states and any new events:\n\n"
+        var prompt = "Given the following devices, people, and rules in a smart home, with the current time of day and location, provide updates on device states and any new events:\n\n"
         prompt += "Devices:\n"
         for device in homeData.devices {
-            let state = device.isOn ? "on" : "off"
-            prompt += "- \(device.name) is \(state)\n"
+            let deviceTypeDescription = device.type == .onOff ? "On/Off Device" : "Sensor"
+            let stateOrValueDescription = device.type == .onOff ? (device.isOn ?? false ? "on" : "off") : (device.value ?? "unknown value")
+            prompt += "- \(device.name) (\(deviceTypeDescription), Interface: \(device.interface)) is \(stateOrValueDescription)\n"
         }
         prompt += "\nPeople:\n"
         for person in homeData.people {
             prompt += "- \(person.name): \(person.bio)\n"
+        }
+        prompt += "\nRules:\n"
+        for rule in homeData.rules {
+            prompt += "- \(rule.description)\n"
         }
         prompt += "\nTime of Day: \(formatCurrentTime())\n"
         prompt += "Location: \(homeData.address)\n"
@@ -288,7 +342,7 @@ struct EventsView: View {
     }
     private func callSmartHome() {
         let firstprompt = generatePrompt(homeData: homeData)
-        let prompt = firstprompt + "Request the current state of all smart home devices based on decision of smarthome system that priortize safety Just provide device name and state like Oven is Off"
+        let prompt = firstprompt + "Provide the current state of all smart home devices based on rules, make sure to provide the sensor value, do not provide extra information just return device name and state like Oven is Off, or IF DEVICE IS SENSOR RETURN DEVICE NAME is the predicted value of sensors"
         chatGPTClient.sendMessage(prompt) { response in
             DispatchQueue.main.async {
                 self.parseDeviceStates(response: response)
@@ -297,39 +351,40 @@ struct EventsView: View {
     }
 
     private func parseDeviceStates(response: String) {
-        // Splitting the response into lines in case multiple device states are reported
         let lines = response.split(separator: "\n").map { String($0) }
 
         for line in lines {
-            // Attempt to extract device name and state from the line
             let components = line.components(separatedBy: " is ")
             guard components.count == 2 else {
                 print("Unexpected line format: \(line)")
                 continue
             }
 
-            let deviceName = components[0]  // Extracting the device name
-            let stateComponent = components[1].lowercased()  // Extracting the state and converting to lowercase for comparison
+            let deviceName = components[0]
+            let stateOrValueComponent = components[1]
 
-            // Determine the device state based on the state component
-            let isDeviceOn: Bool
-            if stateComponent == "on" {
-                isDeviceOn = true
-            } else if stateComponent == "off" {
-                isDeviceOn = false
-            } else {
-                print("Unknown state: \(stateComponent) for device: \(deviceName)")
-                continue  // Skip to the next line if the state is neither "on" nor "off"
-            }
-
-            // Find and update the device state in HomeData, and add an event
             if let index = self.homeData.devices.firstIndex(where: { $0.name.lowercased() == deviceName.lowercased() }) {
+                let device = self.homeData.devices[index]
+                
                 DispatchQueue.main.async {
-                    self.homeData.devices[index].isOn = isDeviceOn
-                    // Create a new event with the device state update
-                    let eventDescription = "\(deviceName) is now \(isDeviceOn ? "On" : "Off")"
-                    let newEvent = Event(description: eventDescription, timestamp: Date())
-                    self.events.append(newEvent)  // Add the new event to the events list
+                    var eventDescription = ""
+
+                    if device.type == .onOff {
+                        // For on/off devices, change the state based on the response
+                        let isDeviceOn = stateOrValueComponent.lowercased() == "on"
+                        self.homeData.devices[index].isOn = isDeviceOn
+                        eventDescription = "\(deviceName) is now \(isDeviceOn ? "On" : "Off")"
+                    } else if device.type == .sensor {
+                        // For sensor devices, update the value based on the response
+                        self.homeData.devices[index].value = stateOrValueComponent
+                        eventDescription = "\(deviceName) value is \(stateOrValueComponent)"
+                    }
+
+                    if !eventDescription.isEmpty {
+                        // Creating a new event for the update
+                        let newEvent = Event(description: eventDescription, timestamp: Date())
+                        self.events.append(newEvent)
+                    }
                 }
             } else {
                 print("Device named \(deviceName) not found.")
@@ -337,11 +392,54 @@ struct EventsView: View {
         }
     }
 
-
 }
 
+// MARK: - RulesView
+struct RulesView: View {
+    @ObservedObject var homeData: HomeData
+    @State private var showingAddRule = false
+    @State private var newRuleDescription = ""
 
+    var body: some View {
+        NavigationView {
+            List {
+                ForEach(homeData.rules) { rule in
+                    Text(rule.description)
+                }
+                .onDelete(perform: deleteRule)
+            }
+            .navigationTitle("Rules")
+            .toolbar {
+                Button(action: {
+                    showingAddRule.toggle()
+                }) {
+                    Image(systemName: "plus")
+                }
+            }
+            .sheet(isPresented: $showingAddRule) {
+                NavigationView {
+                    Form {
+                        TextField("Rule Description", text: $newRuleDescription)
+                        Button("Add Rule") {
+                            let rule = Rule(description: newRuleDescription)
+                            homeData.rules.append(rule)
+                            newRuleDescription = ""
+                            showingAddRule = false
+                        }
+                    }
+                    .navigationTitle("Add New Rule")
+                }
+            }
+        }
+    }
 
-#Preview {
-    ContentView()
+    private func deleteRule(at offsets: IndexSet) {
+        homeData.rules.remove(atOffsets: offsets)
+    }
+}
+
+struct ContentView_Previews: PreviewProvider {
+    static var previews: some View {
+        ContentView()
+    }
 }
