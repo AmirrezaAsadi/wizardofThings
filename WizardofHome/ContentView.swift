@@ -1,9 +1,3 @@
-//
-//  ContentView.swift
-//  WizardofHome
-//
-//  Created by Amir on 1/30/24.
-//
 import SwiftUI
 
 // MARK: - Models
@@ -17,12 +11,18 @@ struct Device: Identifiable {
     var type: DeviceType
     var isOn: Bool?  // Only for onOff devices
     var value: String?  // Only for sensor devices
+    var interface: String // New property for device interface
+    var assignedPerson: Person? // New property for assigned person
 }
 
-struct Person: Identifiable {
+struct Person: Identifiable, Hashable {
     var id = UUID()
     var name: String
     var bio: String
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
 }
 
 struct Event: Identifiable {
@@ -56,7 +56,7 @@ struct ContentView: View {
 
             PeopleView(homeData: homeData)
                 .tabItem {
-                    Label("Enviornment", systemImage: "square.split.bottomrightquarter")
+                    Label("People", systemImage: "person.2")
                 }
 
             EventsView(homeData: homeData)
@@ -81,7 +81,9 @@ struct DevicesView: View {
         NavigationView {
             List {
                 ForEach(homeData.devices) { device in
-                    DeviceRow(device: device)
+                    NavigationLink(destination: DeviceDetailView(device: device, homeData: homeData)) {
+                        DeviceRow(device: device)
+                    }
                 }
                 .onDelete(perform: deleteDevice)
             }
@@ -116,6 +118,9 @@ struct DeviceRow: View {
             } else if device.type == .sensor, let value = device.value {
                 Text("Value: \(value)")
             }
+            if let assignedPerson = device.assignedPerson {
+                Text("Assigned to: \(assignedPerson.name)")
+            }
         }
     }
 }
@@ -126,6 +131,8 @@ struct AddDeviceView: View {
     @State private var deviceName = ""
     @State private var deviceType = DeviceType.onOff
     @State private var isOn = false
+    @State private var deviceInterface = "" // New property for device interface
+    @State private var selectedPerson: Person? // New property for selected person
 
     var body: some View {
         NavigationView {
@@ -143,8 +150,21 @@ struct AddDeviceView: View {
                     }
                 }
 
+                Section(header: Text("Device Interface")) {
+                    TextEditor(text: $deviceInterface)
+                }
+
+                Section(header: Text("Assign to Person")) {
+                    Picker("Person", selection: $selectedPerson) {
+                        Text("None").tag(nil as Person?)
+                        ForEach(homeData.people) { person in
+                            Text(person.name).tag(person as Person?)
+                        }
+                    }
+                }
+
                 Button("Add Device") {
-                    let newDevice = Device(name: deviceName, type: deviceType, isOn: deviceType == .onOff ? isOn : nil)
+                    let newDevice = Device(name: deviceName, type: deviceType, isOn: deviceType == .onOff ? isOn : nil, interface: deviceInterface, assignedPerson: selectedPerson)
                     homeData.devices.append(newDevice)
                     presentationMode.wrappedValue.dismiss()
                 }
@@ -156,6 +176,34 @@ struct AddDeviceView: View {
                 }
             }
         }
+    }
+}
+
+// New view for device details
+struct DeviceDetailView: View {
+    var device: Device
+    @ObservedObject var homeData: HomeData
+
+    var body: some View {
+        Form {
+            Section(header: Text("Device Information")) {
+                Text("Name: \(device.name)")
+                Text("Type: \(device.type == .onOff ? "On/Off" : "Sensor")")
+                if device.type == .onOff, let isOn = device.isOn {
+                    Text("State: \(isOn ? "On" : "Off")")
+                } else if device.type == .sensor, let value = device.value {
+                    Text("Value: \(value)")
+                }
+                if let assignedPerson = device.assignedPerson {
+                    Text("Assigned to: \(assignedPerson.name)")
+                }
+            }
+
+            Section(header: Text("Device Interface")) {
+                Text(device.interface)
+            }
+        }
+        .navigationTitle(device.name)
     }
 }
 
@@ -228,52 +276,6 @@ struct AddPersonView: View {
 }
 
 // MARK: - EventsView
-// EventsView remains unchanged
-
-// MARK: - RulesView
-struct RulesView: View {
-    @ObservedObject var homeData: HomeData
-    @State private var showingAddRule = false
-    @State private var newRuleDescription = ""
-
-    var body: some View {
-        NavigationView {
-            List {
-                ForEach(homeData.rules) { rule in
-                    Text(rule.description)
-                }
-                .onDelete(perform: deleteRule)
-            }
-            .navigationTitle("Rules")
-            .toolbar {
-                Button(action: {
-                    showingAddRule.toggle()
-                }) {
-                    Image(systemName: "plus")
-                }
-            }
-            .sheet(isPresented: $showingAddRule) {
-                NavigationView {
-                    Form {
-                        TextField("Rule Description", text: $newRuleDescription)
-                        Button("Add Rule") {
-                            let rule = Rule(description: newRuleDescription)
-                            homeData.rules.append(rule)
-                            newRuleDescription = ""
-                            showingAddRule = false
-                        }
-                    }
-                    .navigationTitle("Add New Rule")
-                }
-            }
-        }
-    }
-
-    private func deleteRule(at offsets: IndexSet) {
-        homeData.rules.remove(atOffsets: offsets)
-    }
-}
-
 struct EventsView: View {
     @State private var events = [Event(description: "Initial Event", timestamp: Date())]
     @ObservedObject var homeData: HomeData
@@ -318,7 +320,7 @@ struct EventsView: View {
         for device in homeData.devices {
             let deviceTypeDescription = device.type == .onOff ? "On/Off Device" : "Sensor"
             let stateOrValueDescription = device.type == .onOff ? (device.isOn ?? false ? "on" : "off") : (device.value ?? "unknown value")
-            prompt += "- \(device.name) (\(deviceTypeDescription)) is \(stateOrValueDescription)\n"
+            prompt += "- \(device.name) (\(deviceTypeDescription), Interface: \(device.interface)) is \(stateOrValueDescription)\n"
         }
         prompt += "\nPeople:\n"
         for person in homeData.people {
@@ -340,7 +342,7 @@ struct EventsView: View {
     }
     private func callSmartHome() {
         let firstprompt = generatePrompt(homeData: homeData)
-        let prompt = firstprompt + "Provide the current state of all smart home devices based on  rules , make sure to provide the sensor value, do not provide extra information just return device name and state like Oven is Off ,  or IF DEVICE IS SENSOR  RETURN DEVICE NAME is the predicted value of sensors"
+        let prompt = firstprompt + "Provide the current state of all smart home devices based on rules, make sure to provide the sensor value, do not provide extra information just return device name and state like Oven is Off, or IF DEVICE IS SENSOR RETURN DEVICE NAME is the predicted value of sensors"
         chatGPTClient.sendMessage(prompt) { response in
             DispatchQueue.main.async {
                 self.parseDeviceStates(response: response)
@@ -392,8 +394,52 @@ struct EventsView: View {
 
 }
 
+// MARK: - RulesView
+struct RulesView: View {
+    @ObservedObject var homeData: HomeData
+    @State private var showingAddRule = false
+    @State private var newRuleDescription = ""
 
+    var body: some View {
+        NavigationView {
+            List {
+                ForEach(homeData.rules) { rule in
+                    Text(rule.description)
+                }
+                .onDelete(perform: deleteRule)
+            }
+            .navigationTitle("Rules")
+            .toolbar {
+                Button(action: {
+                    showingAddRule.toggle()
+                }) {
+                    Image(systemName: "plus")
+                }
+            }
+            .sheet(isPresented: $showingAddRule) {
+                NavigationView {
+                    Form {
+                        TextField("Rule Description", text: $newRuleDescription)
+                        Button("Add Rule") {
+                            let rule = Rule(description: newRuleDescription)
+                            homeData.rules.append(rule)
+                            newRuleDescription = ""
+                            showingAddRule = false
+                        }
+                    }
+                    .navigationTitle("Add New Rule")
+                }
+            }
+        }
+    }
 
-#Preview {
-    ContentView()
+    private func deleteRule(at offsets: IndexSet) {
+        homeData.rules.remove(atOffsets: offsets)
+    }
+}
+
+struct ContentView_Previews: PreviewProvider {
+    static var previews: some View {
+        ContentView()
+    }
 }
